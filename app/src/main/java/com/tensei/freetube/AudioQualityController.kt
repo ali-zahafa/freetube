@@ -19,6 +19,7 @@ internal enum class AudioQuality(val label: String) {
     }
 }
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal class AudioQualityController(private val player: Player) : Player.Listener {
     private var owned: TrackSelectionOverride? = null
     private var mode = AudioQuality.AUTO

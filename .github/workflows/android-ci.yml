@@ -119,6 +119,7 @@ jobs:
         with:
           name: web-background-device-reports
           path: |
+            app/build/reports/lint-results-debug.xml
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
           if-no-files-found: ignore

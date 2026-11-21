@@ -12,6 +12,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal object ClipExporter {
     // A single video URI is already muxed. Adaptive video and audio get the same source interval.
     suspend fun export(context: Context, clip: DownloadClip, video: String?, audio: String?, output: File) =

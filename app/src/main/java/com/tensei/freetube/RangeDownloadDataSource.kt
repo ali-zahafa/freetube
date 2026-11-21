@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.withPermit
 
 /** Read ahead at most one small window. A seek discards it, so cutting a clip stays seekable. */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal class RangeDownloadDataSource(private val upstream: DataSource.Factory) : DataSource {
     companion object {
         fun factory(upstream: DataSource.Factory) = DataSource.Factory { RangeDownloadDataSource(upstream) }
