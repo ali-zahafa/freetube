@@ -110,6 +110,9 @@ jobs:
             if grep -qi 'unknown host' /tmp/yt-emulator-network.log; then adb shell svc data enable && adb shell svc wifi disable && sleep 5; fi
             adb shell ping -c 1 -W 2 www.youtube.com || true
             ./gradlew :app:connectedDebugAndroidTest --stacktrace
+      - name: Android lint
+        if: always()
+        run: ./gradlew :app:lintDebug --stacktrace
       - name: Upload device test reports
         if: always()
         uses: actions/upload-artifact@v4

@@ -133,6 +133,11 @@ class PlaybackService : MediaSessionService() {
             .setSeekBackIncrementMs(10_000)
             .setSeekForwardIncrementMs(10_000)
             .build()
+        val qualityController = AudioQualityController(player)
+        player.addListener(qualityController)
+        effectsScope.launch {
+            snapshotFlow { SuperPlayerSettings.audioQuality }.collect { qualityController.apply(it) }
+        }
         player.addListener(object : Player.Listener {
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 applyAudioBoost(audioSessionId)

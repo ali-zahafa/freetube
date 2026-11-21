@@ -916,11 +916,13 @@ object Downloads {
         // So the file is fetched as consecutive byte ranges, like NewPipe and yt-dlp do.
         var chunked = remote.ranges && remote.total > 0
 
-        var useParallel = chunked && remote.total - downloaded > DownloadFormats.CHUNK_BYTES
+        var workers = 8
+        var useParallel = chunked && remote.total - downloaded >= DownloadRanges.MIN_PARALLEL_BYTES
         while (remote.total <= 0 || downloaded < remote.total) {
-            if (useParallel && remote.total - downloaded > DownloadFormats.CHUNK_BYTES) {
+            if (useParallel && remote.total - downloaded >= DownloadRanges.MIN_PARALLEL_BYTES) {
                 try {
-                    downloaded = SuperDownloader.appendBatch(url, file, downloaded, remote.total, onProgress)
+                    downloaded = SuperDownloader.appendBatch(url, file, downloaded, remote.total, workers, onProgress)
+                    workers = DownloadRanges.MAX_CONNECTIONS
                     attempts = 0
                     continue
                 } catch (e: CancellationException) {

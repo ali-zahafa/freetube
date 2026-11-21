@@ -1252,6 +1252,7 @@ private fun DownloadFolderSelectionDialog(
 @Composable
 private fun GeneralModificationContent(context: Context) {
     val c = MaterialTheme.colorScheme
+    var showAudioQualityDialog by remember { mutableStateOf(false) }
     var showVideoQualityDialog by remember { mutableStateOf(false) }
     var showShortsQualityDialog by remember { mutableStateOf(false) }
     var showFolderDialog by remember { mutableStateOf(false) }
@@ -1419,6 +1420,11 @@ private fun GeneralModificationContent(context: Context) {
         Spacer(Modifier.height(2.dp))
 
         SettingsClickRow(
+            title = "Audio quality",
+            subtitle = SuperPlayerSettings.audioQuality.label,
+            onClick = { showAudioQualityDialog = true },
+        )
+        SettingsClickRow(
             title = I18n.t("video_quality", "Video Quality"),
             subtitle = QualityPreference.videoQualityDisplay,
             onClick = { showVideoQualityDialog = true },
@@ -1450,6 +1456,25 @@ private fun GeneralModificationContent(context: Context) {
         )
     }
 
+    if (showAudioQualityDialog) {
+        Dialog(onDismissRequest = { showAudioQualityDialog = false }) {
+            Card {
+                Column(Modifier.padding(20.dp)) {
+                    Text("Audio quality", fontWeight = FontWeight.SemiBold)
+                    AudioQuality.entries.forEach { quality ->
+                        SettingsClickRow(quality.label, when (quality) {
+                            AudioQuality.AUTO -> "Use the default track selection"
+                            AudioQuality.HIGH -> "Prefer the highest available audio bitrate"
+                            AudioQuality.DATA_SAVER -> "Prefer a lower bitrate audio track"
+                        }) {
+                            SuperPlayerSettings.updateAudioQuality(quality)
+                            showAudioQualityDialog = false
+                        }
+                    }
+                }
+            }
+        }
+    }
     if (showVideoQualityDialog) {
         QualitySelectionDialog(
             title = I18n.t("video_quality", "Video Quality"),

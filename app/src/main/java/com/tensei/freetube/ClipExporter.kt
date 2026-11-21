@@ -29,7 +29,7 @@ internal object ClipExporter {
             }
             val done = CompletableDeferred<Unit>()
             val factory = DefaultAssetLoaderFactory(context, DefaultDecoderFactory.Builder(context).build(),
-                Clock.DEFAULT, DefaultMediaSourceFactory(YouTubeStreamHttp.createDataSourceFactory(context)),
+                Clock.DEFAULT, DefaultMediaSourceFactory(RangeDownloadDataSource.factory(YouTubeStreamHttp.createDataSourceFactory(context))),
                 DataSourceBitmapLoader.Builder(context).build())
             val transformer = Transformer.Builder(context).setAssetLoaderFactory(factory)
                 // Explicit end timestamp keeps the last frame on screen until the selected end.
