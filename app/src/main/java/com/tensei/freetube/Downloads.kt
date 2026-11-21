@@ -71,8 +71,9 @@ class DownloadTask(
     detail: String = "",
     /** itag of the audio stream the user picked in the Audio only section; 0 = default (best M4A). */
     val audioItag: Int = 0,
+    val clip: DownloadClip? = null,
 ) {
-    val key: String get() = if (audioItag > 0) "$videoId@a$audioItag" else "$videoId@$height"
+    val key: String get() = (if (audioItag > 0) "$videoId@a$audioItag" else "$videoId@$height") + clip?.suffix.orEmpty()
 
     /** Folder this download is written to; null means the current download folder (older entries). */
     var directory by mutableStateOf(directory)
@@ -412,18 +413,19 @@ object Downloads {
     }
 
     /** Downloads exactly the audio stream picked in the dialog, in its own container. */
-    fun enqueueAudio(video: VideoItem, option: AudioDownloadOption): Boolean {
+    fun enqueueAudio(video: VideoItem, option: AudioDownloadOption, clip: DownloadClip? = null): Boolean {
         if (!initialized) return false
-        val key = "${video.id}@a${option.itag}"
+        val key = "${video.id}@a${option.itag}" + clip?.suffix.orEmpty()
         if (tasks.any { it.key == key }) return false
-        val name = DownloadFormats.fileName(video.title, video.id, 0, option.container, audioKbps = option.kbps)
+        val name = DownloadFormats.fileName(video.title, clip?.let { "${it.suffix}_a${option.itag} ${video.id}" } ?: video.id, 0, if (clip == null) option.container else "m4a", audioKbps = option.kbps)
         if (tasks.any { it.fileName == name }) return false
         val task = DownloadTask(
             videoId = video.id,
             title = video.title,
             channel = video.channel,
             thumbnail = video.thumbnail,
-            durationSec = video.durationSec,
+            durationSec = clip?.let { it.end - it.start } ?: video.durationSec,
+            clip = clip,
             height = 0,
             fileName = name,
             container = option.container,
@@ -439,17 +441,18 @@ object Downloads {
         return true
     }
 
-    fun enqueue(video: VideoItem, option: DownloadOption): Boolean {
+    fun enqueue(video: VideoItem, option: DownloadOption, clip: DownloadClip? = null): Boolean {
         if (!initialized) return false
-        val key = "${video.id}@${option.height}"
+        val key = "${video.id}@${option.height}" + clip?.suffix.orEmpty()
         if (tasks.any { it.key == key }) return false
-        val name = DownloadFormats.fileName(video.title, video.id, option.height, option.container, option.hdr)
+        val name = DownloadFormats.fileName(video.title, clip?.let { "${it.suffix} ${video.id}" } ?: video.id, option.height, if (clip == null) option.container else "mp4", option.hdr)
         val task = DownloadTask(
             videoId = video.id,
             title = video.title,
             channel = video.channel,
             thumbnail = video.thumbnail,
-            durationSec = video.durationSec,
+            durationSec = clip?.let { it.end - it.start } ?: video.durationSec,
+            clip = clip,
             height = option.height,
             fileName = name,
             container = option.container,
@@ -598,6 +601,30 @@ object Downloads {
         val info = StreamCache.getOrLoad(task.videoId)
         HdrFormats.install(task.videoId, info)
         val ctx = currentCoroutineContext()
+
+        task.clip?.let { clip ->
+            require(info.duration <= 0 || clip.end <= info.duration) { "Cut ends after the video" }
+            val option = if (task.height > 0) optionsFor(info).firstOrNull { it.height == task.height }
+                ?: throw IOException("That video quality is no longer available") else null
+            val videoUrl = (option?.muxed ?: option?.video)?.content
+            val audioUrl = when {
+                option == null -> audioOptionsFor(info).firstOrNull { it.itag == task.audioItag }?.stream?.content
+                    ?: throw IOException("That audio quality is no longer available")
+                option.muxed == null -> requireNotNull(option.audio?.content)
+                else -> null
+            }
+            task.status = DownloadStatus.Processing
+            task.detail = clip.label
+            val partial = File.createTempFile(".clip-", ".part", task.file.parentFile)
+            try {
+                ClipExporter.export(appContext, clip, videoUrl, audioUrl, partial)
+                ctx.ensureActive()
+                verifyMediaFile(partial, task.height > 0, true, clip.end - clip.start)
+                check(partial.renameTo(task.file)) { "Could not save clip" }
+                finishTask(task, task.file)
+            } finally { partial.delete() }
+            return
+        }
 
         if (task.height == 0) {
             val audio = if (task.audioItag > 0) {
@@ -775,7 +802,7 @@ object Downloads {
      * Confirms the finished file is real media before calling it complete: it must open, and
      * contain the expected audio (and video) tracks.
      */
-    private fun verifyMediaFile(file: File, needVideo: Boolean, needAudio: Boolean) {
+    private fun verifyMediaFile(file: File, needVideo: Boolean, needAudio: Boolean, seconds: Long? = null) {
         if (!file.exists() || file.length() <= 0L) throw DamagedFileException("The downloaded file is missing")
         val extractor = MediaExtractor()
         try {
@@ -783,7 +810,13 @@ object Downloads {
             var hasVideo = false
             var hasAudio = false
             for (i in 0 until extractor.trackCount) {
-                val mime = extractor.getTrackFormat(i).getString(AndroidMediaFormat.KEY_MIME).orEmpty()
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(AndroidMediaFormat.KEY_MIME).orEmpty()
+                if (seconds != null && (mime.startsWith("audio/") || mime.startsWith("video/"))) {
+                    val durationUs = format.getLong(AndroidMediaFormat.KEY_DURATION)
+                    if (kotlin.math.abs(durationUs - seconds * 1_000_000) > 250_000)
+                        throw DamagedFileException("Clip duration does not match the selected interval")
+                }
                 if (mime.startsWith("video/")) hasVideo = true
                 if (mime.startsWith("audio/")) hasAudio = true
             }
@@ -883,11 +916,13 @@ object Downloads {
         // So the file is fetched as consecutive byte ranges, like NewPipe and yt-dlp do.
         var chunked = remote.ranges && remote.total > 0
 
-        var useParallel = chunked && remote.total - downloaded > DownloadFormats.CHUNK_BYTES
+        var workers = 8
+        var useParallel = chunked && remote.total - downloaded >= DownloadRanges.MIN_PARALLEL_BYTES
         while (remote.total <= 0 || downloaded < remote.total) {
-            if (useParallel && remote.total - downloaded > DownloadFormats.CHUNK_BYTES) {
+            if (useParallel && remote.total - downloaded >= DownloadRanges.MIN_PARALLEL_BYTES) {
                 try {
-                    downloaded = SuperDownloader.appendBatch(url, file, downloaded, remote.total, onProgress)
+                    downloaded = SuperDownloader.appendBatch(url, file, downloaded, remote.total, workers, onProgress)
+                    workers = DownloadRanges.MAX_CONNECTIONS
                     attempts = 0
                     continue
                 } catch (e: CancellationException) {
@@ -1089,7 +1124,7 @@ object Downloads {
 
     private fun workFile(task: DownloadTask, kind: String): File {
         val variant = if (task.audioItag > 0) "a${task.audioItag}" else task.height.toString()
-        return File(task.directory?.let(::File) ?: dir, "${task.videoId}_${variant}_$kind.part")
+        return File(task.directory?.let(::File) ?: dir, "${task.videoId}_${variant}${task.clip?.suffix.orEmpty()}_$kind.part")
     }
 
     /** Sidecar recording which stream a partial file belongs to, so resuming never mixes streams. */
@@ -1123,6 +1158,8 @@ object Downloads {
                         .put("status", task.status.name)
                         .put("dir", task.directory)
                         .put("detail", task.detail)
+                        .put("clipStart", task.clip?.start)
+                        .put("clipEnd", task.clip?.end)
                         .put("aitag", task.audioItag),
                 )
             }
@@ -1164,6 +1201,7 @@ object Downloads {
                     },
                     directory = json.optString("dir").takeIf { it.isNotBlank() && it != "null" },
                     detail = json.optString("detail").takeIf { it != "null" }.orEmpty(),
+                    clip = if (json.has("clipEnd")) DownloadClip(json.getLong("clipStart"), json.getLong("clipEnd")) else null,
                     audioItag = json.optInt("aitag", 0),
                 )
                 if (status == DownloadStatus.Complete && !task.file.exists()) continue
@@ -1192,6 +1230,9 @@ object Downloads {
                 val id = stem.takeLast(11)
                 if (id.length != 11) return@forEach
                 val label = stem.dropLast(12).trim()
+                val range = Regex(""" _clip_(\d+)-(\d+)(?:_a(\d+))?$""").find(label)
+                val clip = range?.let { DownloadClip.parse(
+                    DownloadClip.time(it.groupValues[1].toLong()), DownloadClip.time(it.groupValues[2].toLong()), 0) }
                 val cut = label.lastIndexOf(" [")
                 val title = (if (cut > 0) label.substring(0, cut) else label).trim()
                 val height = Regex("\\[(\\d+)p]").find(label)?.groupValues?.get(1)?.toIntOrNull()
@@ -1203,7 +1244,10 @@ object Downloads {
                         title = title.ifBlank { "Downloaded video" },
                         channel = "",
                         thumbnail = feedThumbnailUrl(id),
-                        durationSec = 0L,
+                        durationSec = clip?.let { it.end - it.start } ?: 0L,
+                        clip = clip,
+                        detail = clip?.label.orEmpty(),
+                        audioItag = range?.groupValues?.get(3)?.toIntOrNull() ?: 0,
                         height = height,
                         fileName = name,
                         container = if (ext == ".webm") "webm" else "mp4",

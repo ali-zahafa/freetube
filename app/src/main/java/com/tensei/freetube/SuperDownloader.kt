@@ -1,6 +1,7 @@
 package com.tensei.freetube
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -11,20 +12,17 @@ import java.io.File
 import java.io.IOException
 
 internal object SuperDownloader {
-    private const val WORKERS = 8
+
 
     suspend fun appendBatch(
         url: String,
         destination: File,
         from: Long,
         total: Long,
+        workers: Int,
         onProgress: (Long) -> Unit,
     ): Long {
-        val ranges = (0 until WORKERS).mapNotNull { worker ->
-            val start = from + worker * DownloadFormats.CHUNK_BYTES
-            if (start >= total) null
-            else DownloadFormats.chunkEnd(start, total, DownloadFormats.CHUNK_BYTES)?.let { end -> start..end }
-        }
+        val ranges = DownloadRanges.plan(from, total - from, workers, 512L * 1024)
         val parent = destination.parentFile ?: throw IOException("Download directory missing")
         val temp = File(parent, "ranges-${java.util.UUID.randomUUID()}")
         if (!temp.mkdir()) throw IOException("Could not create a temporary range directory")
@@ -33,18 +31,25 @@ internal object SuperDownloader {
             val parts = coroutineScope {
                 ranges.mapIndexed { index, range ->
                     async(Dispatchers.IO) {
-                        File(temp, "$index.part").also { fetchRange(url, range, total, it) }
+                        DownloadRanges.permits.withPermit {
+                            File(temp, "$index.part").also { fetchRange(url, range, total, it) }
+                        }
                     }
                 }.awaitAll()
             }
             if (destination.length() != from) throw IOException("Download changed during transfer")
-            java.io.FileOutputStream(destination, true).buffered().use { output ->
-                for (part in parts) {
-                    context.ensureActive()
-                    part.inputStream().use { it.copyTo(output) }
-                    onProgress(part.length())
+            try {
+                java.io.FileOutputStream(destination, true).buffered().use { output ->
+                    for (part in parts) {
+                        context.ensureActive()
+                        part.inputStream().use { it.copyTo(output) }
+                    }
                 }
+            } catch (failure: Throwable) {
+                java.io.RandomAccessFile(destination, "rw").use { it.setLength(from) }
+                throw failure
             }
+            onProgress(destination.length() - from)
             return destination.length()
         } finally {
             temp.deleteRecursively()

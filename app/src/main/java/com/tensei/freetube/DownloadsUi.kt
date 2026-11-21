@@ -28,7 +28,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
-import androidx.compose.material3.Button
+import androidx.compose.material3.*
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -66,7 +66,12 @@ fun DownloadQualitySheet(video: VideoItem, onDownloadStarted: ((String) -> Unit)
     var error by remember(video.id) { mutableStateOf<String?>(null) }
     var selected by remember(video.id) { mutableStateOf<Int?>(null) }
     var audioOptions by remember(video.id) { mutableStateOf<List<AudioDownloadOption>>(emptyList()) }
-    // itag of the picked audio stream; a video quality and an audio stream are mutually exclusive.
+    val ar = LanguageSettings.effectiveLanguageCode() == "ar"
+    var audioTab by androidx.compose.runtime.saveable.rememberSaveable(video.id) { mutableStateOf(false) }
+    var cut by androidx.compose.runtime.saveable.rememberSaveable(video.id) { mutableStateOf(false) }
+    var from by androidx.compose.runtime.saveable.rememberSaveable(video.id) { mutableStateOf("0:00") }
+    var to by androidx.compose.runtime.saveable.rememberSaveable(video.id) { mutableStateOf("") }
+    val clip = if (cut) DownloadClip.parse(from, to, video.durationSec) else null
     var selectedAudio by remember(video.id) { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(video.id) {
@@ -78,7 +83,8 @@ fun DownloadQualitySheet(video: VideoItem, onDownloadStarted: ((String) -> Unit)
                 options = list
                 // Highest available by default: a 4K video should offer 4K, not 720p.
                 selected = list.firstOrNull()?.height
-                if (selected == null) selectedAudio = audioOptions.firstOrNull()?.itag
+                selectedAudio = audioOptions.firstOrNull()?.itag
+                if (selected == null) audioTab = true
             }
             .onFailure { error = it.message ?: "Could not load the available qualities" }
     }
@@ -144,44 +150,51 @@ fun DownloadQualitySheet(video: VideoItem, onDownloadStarted: ((String) -> Unit)
                     modifier = Modifier.padding(vertical = 16.dp),
                 )
                 else -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 360.dp)
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        if (options!!.isNotEmpty() && audioOptions.isNotEmpty()) SectionLabel("Video")
-                        options!!.forEach { option ->
-                            QualityChoiceRow(option, selectedAudio == null && selected == option.height) {
-                                selected = option.height
-                                selectedAudio = null
-                            }
-                        }
-                        if (audioOptions.isNotEmpty()) {
-                            SectionLabel("Audio only")
-                            audioOptions.forEach { option ->
-                                AudioChoiceRow(option, selectedAudio == option.itag) { selectedAudio = option.itag }
-                            }
-                        }
+                    TabRow(selectedTabIndex = if (audioTab) 1 else 0) {
+                        Tab(selected = !audioTab, onClick = { audioTab = false }, enabled = options!!.isNotEmpty(),
+                            text = { Text(if (ar) "فيديو" else "Video") })
+                        Tab(selected = audioTab, onClick = { audioTab = true }, enabled = audioOptions.isNotEmpty(),
+                            text = { Text(if (ar) "صوت" else "Audio") })
                     }
-                    Spacer(Modifier.height(18.dp))
-                    val audioChoice = audioOptions.firstOrNull { it.itag == selectedAudio }
-                    val choice = if (audioChoice != null) null else options!!.firstOrNull { it.height == selected }
+                    Column(Modifier.fillMaxWidth().weight(1f, fill = false).heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState())) {
+                        if (audioTab) audioOptions.forEach { option ->
+                            AudioChoiceRow(option, selectedAudio == option.itag) { selectedAudio = option.itag }
+                        } else options!!.forEach { option ->
+                            QualityChoiceRow(option, selected == option.height) { selected = option.height }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Checkbox(checked = cut, onCheckedChange = { cut = it })
+                            Text(if (ar) "قص (Cut)" else "Cut")
+                            if (cut) {
+                                OutlinedTextField(from, { from = it }, Modifier.weight(1f), singleLine = true,
+                                    label = { Text(if (ar) "من" else "From") }, placeholder = { Text("0:00") })
+                                OutlinedTextField(to, { to = it }, Modifier.weight(1f), singleLine = true,
+                                    label = { Text(if (ar) "إلى" else "To") }, placeholder = { Text("0:30") })
+                            }
+                        }
+                        if (cut) Text(
+                            if (ar) "دقيقة:ثانية · النهاية بعد البداية وداخل مدة المقطع" else "Minutes:seconds · End must follow start and be within the recording.",
+                            fontSize = 12.sp, color = if (to.isNotBlank() && clip == null) c.error else c.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    val audioChoice = audioOptions.firstOrNull { audioTab && it.itag == selectedAudio }
+                    val choice = options!!.firstOrNull { !audioTab && it.height == selected }
                     Button(
                         onClick = {
                             if (audioChoice != null) {
-                                val added = Downloads.enqueueAudio(video, audioChoice)
+                                val added = Downloads.enqueueAudio(video, audioChoice, clip)
                                 onDownloadStarted?.invoke(
                                     if (added) "Downloading audio (${audioChoice.formatDetail}) • ${video.title}" else "Already in downloads",
                                 )
                                 onDismiss()
                             } else if (choice != null) {
-                                val added = Downloads.enqueue(video, choice)
+                                val added = Downloads.enqueue(video, choice, clip)
                                 onDownloadStarted?.invoke(if (added) "Downloading ${choice.label} • ${video.title}" else "Already in downloads")
                                 onDismiss()
                             }
                         },
-                        enabled = choice != null || audioChoice != null,
+                        enabled = (choice != null || audioChoice != null) && (!cut || clip != null),
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = c.primary, contentColor = c.onPrimary),
@@ -190,6 +203,7 @@ fun DownloadQualitySheet(video: VideoItem, onDownloadStarted: ((String) -> Unit)
                         Spacer(Modifier.width(8.dp))
                         Text(
                             when {
+                                cut -> (if (ar) "تحميل المقطع" else "Download clip") + (clip?.let { " · ${it.label}" } ?: "")
                                 audioChoice != null -> "Download audio${sizeSuffix(audioChoice.estimatedBytes, audioChoice.sizeExact)}"
                                 choice != null -> "Download ${choice.label}${sizeSuffix(choice.estimatedBytes, choice.sizeExact)}"
                                 else -> "Download"
@@ -204,18 +218,6 @@ fun DownloadQualitySheet(video: VideoItem, onDownloadStarted: ((String) -> Unit)
     }
 }
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 12.5.sp,
-        modifier = Modifier.padding(top = 6.dp, bottom = 6.dp, start = 4.dp),
-    )
-}
-
-/** One original audio stream: saved in its own container, no conversion. */
 @Composable
 private fun AudioChoiceRow(option: AudioDownloadOption, selected: Boolean, onClick: () -> Unit) {
     val title = if (option.best) "Original quality" else listOfNotNull(

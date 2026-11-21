@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 internal object SuperPlayerSettings {
     private lateinit var preferences: SharedPreferences
 
+    var audioQuality by mutableStateOf(AudioQuality.AUTO)
+        private set
     var skipSilence by mutableStateOf(false)
         private set
     var audioBoost by mutableStateOf(false)
@@ -18,9 +20,15 @@ internal object SuperPlayerSettings {
 
     fun init(context: Context) {
         preferences = context.getSharedPreferences("super_player", Context.MODE_PRIVATE)
+        audioQuality = AudioQuality.entries.firstOrNull { it.name == preferences.getString("audio_quality", null) } ?: AudioQuality.AUTO
         skipSilence = preferences.getBoolean("skip_silence", false)
         audioBoost = preferences.getBoolean("audio_boost", false)
         deArrowTitles = preferences.getBoolean("dearrow_titles", false)
+    }
+
+    fun updateAudioQuality(quality: AudioQuality) {
+        audioQuality = quality
+        preferences.edit().putString("audio_quality", quality.name).apply()
     }
 
     fun updateSkipSilence(enabled: Boolean) {

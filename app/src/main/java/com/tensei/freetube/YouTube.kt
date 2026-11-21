@@ -800,7 +800,8 @@ object StreamSelection {
             !it.audioTrackId.isNullOrBlank() || !it.audioTrackName.isNullOrBlank() || it.audioLocale != null
         }
         val byKey = LinkedHashMap<String, AudioStream>()
-        usable.sortedByDescending { it.averageBitrate }.forEach { stream ->
+        val quality = SuperPlayerSettings.audioQuality
+        usable.sortedByDescending { quality.rank(it.averageBitrate, it.bitrate) }.forEach { stream ->
             val key = audioTrackKey(stream)
             if (named && key == "default") return@forEach
             byKey.putIfAbsent(key, stream)

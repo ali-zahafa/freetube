@@ -228,6 +228,9 @@ class PlayerState(private val scope: CoroutineScope) {
     var musicQueue by mutableStateOf<List<VideoItem>>(emptyList())
         private set
 
+    private fun isCurrentSource(item: VideoItem): Boolean =
+        current?.let { it.id == item.id && it.localUri == item.localUri } == true
+
     fun open(item: VideoItem, expand: Boolean = true) {
         if (WebPlaybackSession.videoId != item.id) WebPlaybackSession.stop()
         isMusicMode = false
@@ -235,7 +238,7 @@ class PlayerState(private val scope: CoroutineScope) {
         runCatching { applyVideoTrack() }
         if (expand) expanded = true
         if (expand && TvMode.isTv) fullscreen = true
-        if (current?.id == item.id && error == null) return
+        if (isCurrentSource(item) && error == null) return
         known[item.id] = item
         show(item, startPlayback = true)
     }
@@ -244,7 +247,7 @@ class PlayerState(private val scope: CoroutineScope) {
         val saved = entry.video
         val localFile = saved.localUri?.toUri()?.path?.let { java.io.File(it) }
         val item = if (localFile?.isFile == false) saved.copy(localUri = null) else saved
-        if (current?.id == item.id && error == null) {
+        if (isCurrentSource(item) && error == null) {
             expanded = true
             play()
             return
@@ -261,9 +264,9 @@ class PlayerState(private val scope: CoroutineScope) {
         val item = items.getOrNull(index) ?: return
         isMusicMode = true
         applyVideoTrack()
-        musicQueue = items.drop(index + 1).filter { it.id != item.id }
+        musicQueue = items.drop(index + 1).filter { it.id != item.id || it.localUri != item.localUri }
         if (expand) expanded = true
-        if (current?.id == item.id && error == null) {
+        if (isCurrentSource(item) && error == null) {
             publishUpNext(item.id)
             return
         }
@@ -1057,7 +1060,7 @@ class PlayerState(private val scope: CoroutineScope) {
         backgroundAudioFor = item.id
         BackgroundAudioOverride.videoId = item.id
         startAt = item.id to positionMs
-        val alreadyOpen = current?.id == item.id && error == null
+        val alreadyOpen = isCurrentSource(item) && error == null
         open(item, expand = false)
         applyVideoTrack()
         if (alreadyOpen) controller?.let { it.seekTo(positionMs); it.play() }
