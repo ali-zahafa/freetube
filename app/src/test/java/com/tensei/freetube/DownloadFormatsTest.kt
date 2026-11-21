@@ -6,6 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloadFormatsTest {
+    @Test fun clipTimesRespectBoundsAndAcceptArabicDigits() {
+        assertEquals(DownloadClip(75, 160), DownloadClip.parse("١:١٥", "٢:٤٠", 160))
+        assertEquals(DownloadClip(3600, 3601), DownloadClip.parse("60:00", "60:01", 0))
+        for (to in listOf("", "0:60", "0:30", "1:00", "1:61", "1:0", "-1:01", "99:00")) {
+            assertEquals(null, DownloadClip.parse("1:00", to, 120))
+        }
+    }
+
 
     @Test
     fun audioDownloads_areM4a_neverMp3() {
