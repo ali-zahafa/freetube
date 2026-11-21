@@ -25,6 +25,7 @@ internal class RangeDownloadDataSource(private val upstream: DataSource.Factory)
     private var direct: DataSource? = null
     private lateinit var spec: DataSpec
     private var consumed = 0L
+    private var total: Long? = null
     private var length = 0L
     private var resolved: Uri? = null
     private var headers = emptyMap<String, List<String>>()
@@ -43,6 +44,9 @@ internal class RangeDownloadDataSource(private val upstream: DataSource.Factory)
         length = first.open(spec)
         resolved = first.uri
         headers = first.responseHeaders
+        total = headers.entries.firstOrNull { it.key.equals("Content-Range", true) }
+            ?.value?.firstOrNull()?.substringAfterLast('/')?.toLongOrNull()
+            ?: length.takeIf { spec.position == 0L && spec.length == C.LENGTH_UNSET.toLong() && it > 0 }
         val ranges = headers.any { (k, v) -> k.equals("Content-Range", true) ||
             (k.equals("Accept-Ranges", true) && v.any { it.equals("bytes", true) }) }
         if (ranges && spec.httpMethod == DataSpec.HTTP_METHOD_GET && spec.uri.scheme in listOf("https", "http")
@@ -79,7 +83,7 @@ internal class RangeDownloadDataSource(private val upstream: DataSource.Factory)
         val size = minOf(WINDOW, length - consumed)
         val result = ByteArray(size.toInt())
         val start = spec.position + consumed
-        val ranges = DownloadRanges.plan(start, size, 16, 128L * 1024)
+        val ranges = DownloadRanges.plan(start, size, DownloadRanges.MAX_CONNECTIONS, 128L * 1024)
         runBlocking {
             ranges.map { range -> async(Dispatchers.IO) {
                 DownloadRanges.permits.withPermit {
@@ -89,7 +93,10 @@ internal class RangeDownloadDataSource(private val upstream: DataSource.Factory)
                         part.open(spec.subrange(range.first - spec.position, bytes))
                         val header = part.responseHeaders.entries.firstOrNull { it.key.equals("Content-Range", true) }
                             ?.value?.firstOrNull()
-                        if (header?.substringBefore('/') != "bytes ${range.first}-${range.last}") throw IOException("Range mismatch")
+                        val resourceLength = header?.substringAfterLast('/')?.toLongOrNull()
+                        if (resourceLength == null || resourceLength <= range.last ||
+                            (total != null && resourceLength != total) ||
+                            header?.substringBefore('/') != "bytes ${range.first}-${range.last}") throw IOException("Range mismatch")
                         var position = (range.first - start).toInt()
                         val end = position + bytes.toInt()
                         while (position < end) {
