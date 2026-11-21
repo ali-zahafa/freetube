@@ -32,6 +32,8 @@ internal object ClipExporter {
                 Clock.DEFAULT, DefaultMediaSourceFactory(YouTubeStreamHttp.createDataSourceFactory(context)),
                 DataSourceBitmapLoader.Builder(context).build())
             val transformer = Transformer.Builder(context).setAssetLoaderFactory(factory)
+                // Explicit end timestamp keeps the last frame on screen until the selected end.
+                .setMuxerFactory(InAppMp4Muxer.Factory().setVideoDurationUs((clip.end - clip.start) * 1_000_000))
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) { done.complete(Unit) }
