@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">freetube</string>
+    <string name="app_name" translatable="false">freetube</string>
     <string name="clipboard_video_title">Open copied video?</string>
     <string name="clipboard_video_message">A YouTube video link was copied to your clipboard.</string>
     <string name="clipboard_video_open">Open in freetube</string>
