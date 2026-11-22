@@ -46,16 +46,16 @@ jobs:
       - name: Build and verify signed APK
         shell: bash
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.FREETUBE_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.FREETUBE_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.FREETUBE_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.FREETUBE_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.YTUBE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.YTUBE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.YTUBE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.YTUBE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          : "${ANDROID_KEYSTORE_BASE64:?Missing FREETUBE_KEYSTORE_BASE64 secret}"
-          : "${KEYSTORE_PASSWORD:?Missing FREETUBE_KEYSTORE_PASSWORD secret}"
-          : "${KEY_ALIAS:?Missing FREETUBE_KEY_ALIAS secret}"
-          : "${KEY_PASSWORD:?Missing FREETUBE_KEY_PASSWORD secret}"
+          : "${ANDROID_KEYSTORE_BASE64:?Missing YTUBE_KEYSTORE_BASE64 secret}"
+          : "${KEYSTORE_PASSWORD:?Missing YTUBE_KEYSTORE_PASSWORD secret}"
+          : "${KEY_ALIAS:?Missing YTUBE_KEY_ALIAS secret}"
+          : "${KEY_PASSWORD:?Missing YTUBE_KEY_PASSWORD secret}"
 
           umask 077
           export ANDROID_RELEASE_KEYSTORE="$(mktemp "$RUNNER_TEMP/freetube-release.XXXXXX")"
@@ -91,6 +91,7 @@ jobs:
           keystore_cert="$(sha256sum "$cert_file" | cut -d ' ' -f1 | tr '[:upper:]' '[:lower:]')"
           [[ "$keystore_cert" =~ ^[a-f0-9]{64}$ ]] || { echo "::error::Could not calculate JKS certificate fingerprint"; exit 1; }
           [[ "$apk_cert" == "$keystore_cert" ]] || { echo "::error::APK signer does not match the supplied JKS certificate"; exit 1; }
+          [[ "$apk_cert" == "085ec5ace9792f22659f316a55a766759f8677f2d952ca44c057c40e7c081192" ]] || { echo "::error::Unexpected release signing certificate"; exit 1; }
           unset KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD
 
           echo "Checking APK package identity and release metadata"
