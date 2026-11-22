@@ -1,6 +1,9 @@
 name: Android release
 
 on:
+  push:
+    branches: [main]
+    paths: [docs/releases/v2.6.1.md]
   workflow_dispatch:
     inputs:
       publish:
@@ -112,7 +115,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: inputs.publish && github.ref_type == 'tag'
+    if: (inputs.publish && github.ref_type == 'tag') || github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -139,6 +142,15 @@ jobs:
             release_notes=(--notes-file "$notes")
           fi
 
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            [[ "$tag" == v2.6.1 ]]
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "Release already exists"; exit 0
+            fi
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+              echo "::error::Tag already exists"; exit 1
+            fi
+          fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "release/$apk" --repo "$GITHUB_REPOSITORY" --clobber
           else

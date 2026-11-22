@@ -16,6 +16,14 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](#english)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
 
+## [تحميل freetube v2.6.1 لأندرويد · Download the Android APK](https://github.com/ali-zahafa/freetube/releases/download/v2.6.1/freetube-v2.6.1.apk)
+
+إذا طلب Google Play Protect فحص التطبيق، اختر **Scan app** واتبع النتيجة على جهازك. الصورة من فحص النسخة التجريبية على هاتف أحد المستخدمين.
+
+If Google Play Protect offers a scan, choose **Scan app** and follow the result on your device. The screenshot shows a user's scan of the preview build.
+
+<img src="docs/screenshots/play-protect-preview.jpg" width="280" alt="Google Play Protect scan result on a user's phone / نتيجة فحص النسخة التجريبية على هاتف مستخدم" />
+
 [English](#english) · [العربية](#arabic)
 
 </div>
@@ -29,6 +37,13 @@
 **freetube** is a free, open-source **YouTube alternative** and streaming app for Android. Watch YouTube videos, Shorts and live streams **without ads**, keep listening **in the background** with the screen off, and **download** videos and audio at full speed — no Google account required. It also works as a lightweight **YouTube Music** player and runs on phones, tablets and **Android TV**.
 
 Built with Kotlin, Jetpack Compose and AndroidX Media3 (ExoPlayer).
+
+### What's new in freetube 2.6.1
+
+- Choose **Video** or **Audio** in the download sheet to see the available qualities for each.
+- To save a clip, choose a quality, select **Cut**, and enter the start and end times in minutes and seconds. This works for both video and audio.
+- Downloads and clips can use up to 16 parallel range requests on supported servers, with one progress bar.
+- Audio quality settings now include **Auto**, **High**, and **Data Saver**. When the source offers multiple audio encodings for your language, audio quality can be selected independently of video resolution.
 
 ### What's new in freetube 2.6.0
 
@@ -74,7 +89,7 @@ Built with Kotlin, Jetpack Compose and AndroidX Media3 (ExoPlayer).
 
 ### 📥 Download
 
-APKs are built automatically by GitHub Actions on every change: **Actions → Android CI → latest run → Artifacts → `freetube-debug-apk`**. Unzip it, install `app-debug.apk`, and allow installs from unknown sources if asked.
+[Download the signed freetube v2.6.1 APK](https://github.com/ali-zahafa/freetube/releases/download/v2.6.1/freetube-v2.6.1.apk)
 
 ### 🛠️ Build from source
 
@@ -96,6 +111,13 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk` (JDK 21 and th
 **freetube** تطبيق مجاني ومفتوح المصدر، **بديل لتطبيق يوتيوب** على أندرويد. اتفرّج على فيديوهات يوتيوب والشورتس والبث المباشر **من غير إعلانات**، وكمّل سماع **في الخلفية** والشاشة مقفولة، و**حمّل** الفيديوهات والصوت بأقصى سرعة — من غير ما تحتاج حساب جوجل. وكمان بيشتغل كمشغّل **يوتيوب ميوزك** خفيف، وعلى الموبايل والتابلت و**Android TV**.
 
 مبني بـ Kotlin و Jetpack Compose ومشغّل AndroidX Media3 (ExoPlayer).
+
+### الجديد في freetube 2.6.1
+
+- اختر **فيديو** أو **صوت** في نافذة التحميل لعرض الجودات المناسبة لكل نوع.
+- لحفظ مقطع، اختر الجودة ثم **Cut** وحدّد وقت البداية والنهاية بالدقائق والثواني. يعمل القصّ للفيديو والصوت.
+- يستخدم التحميل حتى ١٦ طلبًا متوازيًا للملفات والمقاطع عندما يدعم الخادم ذلك، مع شريط تقدّم واحد.
+- من إعدادات الجودة، اختر **Auto** أو **High** أو **Data Saver** للصوت. عند توفر عدة مسارات للغة نفسها، يمكنك اختيار جودة الصوت بشكل مستقل عن دقة الفيديو.
 
 ### الجديد في freetube 2.6.0
 
@@ -139,7 +161,7 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk` (JDK 21 and th
 
 ### 📥 التحميل
 
-ملفات APK بتتبني تلقائياً على GitHub Actions مع كل تعديل: **Actions ← Android CI ← آخر تشغيل ← Artifacts ← `freetube-debug-apk`**. فك الضغط وثبّت `app-debug.apk`، ولو طلب منك اسمح بالتثبيت من مصادر غير معروفة.
+[تحميل ملف APK الموقّع لإصدار freetube v2.6.1](https://github.com/ali-zahafa/freetube/releases/download/v2.6.1/freetube-v2.6.1.apk)
 
 </div>
 

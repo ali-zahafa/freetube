@@ -17,8 +17,8 @@ android {
         val repository = providers.environmentVariable("GITHUB_REPOSITORY").orNull.orEmpty()
         require(repository.isEmpty() || Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+").matches(repository))
         buildConfigField("String", "REPOSITORY", "\"$repository\"")
-        versionCode = 260
-        versionName = "2.6.0"
+        versionCode = 261
+        versionName = "2.6.1"
     }
 
     val releaseKeystore = providers.environmentVariable("ANDROID_RELEASE_KEYSTORE").orNull
