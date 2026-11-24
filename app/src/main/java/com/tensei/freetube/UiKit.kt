@@ -41,6 +41,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -247,19 +248,15 @@ fun Modifier.prefetchOnPress(videoId: String): Modifier = pointerInput(videoId) 
 val LocalVideoMenu = staticCompositionLocalOf<(VideoItem) -> Unit> { {} }
 
 @Composable
-fun Thumbnail(url: String?, modifier: Modifier = Modifier, radius: Int = 22, videoId: String? = null) {
+fun Thumbnail(url: String?, modifier: Modifier = Modifier, radius: Int = 22, videoId: String? = null, durationSec: Long = 0) {
     val model = remember(url, videoId) {
         val id = videoId ?: url?.let(::ytVideoIdFromThumbUrl)
         if (id != null) sharpenFeedThumbnail(url, id) else url
     }
-    AsyncImage(
-        model = model,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = modifier
-            .clip(RoundedCornerShape(radius.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-    )
+    Box(modifier.clip(RoundedCornerShape(radius.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+        AsyncImage(model = model, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        if (videoId != null) WatchProgressBadge(videoId, durationSec, Modifier.align(Alignment.BottomStart))
+    }
 }
 
 @Composable
@@ -363,9 +360,9 @@ fun VideoCard(video: VideoItem, onClick: () -> Unit, modifier: Modifier = Modifi
                 Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                 radius = 0,
                 videoId = video.id,
+                durationSec = video.durationSec,
             )
             DurationPill(video.durationSec, Modifier.align(Alignment.BottomEnd).padding(8.dp), isLive = video.isLive)
-            ResumeBar(video.id, Modifier.align(Alignment.BottomStart))
         }
         Row(
             modifier = Modifier
@@ -428,7 +425,7 @@ fun VideoRow(video: VideoItem, onClick: () -> Unit, trailing: (@Composable () ->
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(140.dp)) {
-            Thumbnail(video.thumbnail, Modifier.fillMaxWidth().aspectRatio(16f / 9f), radius = 16)
+            Thumbnail(video.thumbnail, Modifier.fillMaxWidth().aspectRatio(16f / 9f), radius = 16, videoId = video.id, durationSec = video.durationSec)
             DurationPill(video.durationSec, Modifier.align(Alignment.BottomEnd).padding(6.dp), small = true, isLive = video.isLive)
         }
         Spacer(Modifier.width(12.dp))
@@ -455,11 +452,18 @@ fun VideoRow(video: VideoItem, onClick: () -> Unit, trailing: (@Composable () ->
 
 
 @Composable
-fun ResumeBar(videoId: String, modifier: Modifier = Modifier) {
-    val progress = ResumeStore.progress(videoId) ?: return
-    val c = MaterialTheme.colorScheme
-    Box(modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = 0.45f))) {
-        Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(c.primary))
+private fun WatchProgressBadge(id: String, durationSec: Long, modifier: Modifier) {
+    val mark = WatchHistory.progress.collectAsState().value[id] ?: return
+    if (mark.at <= WatchHistoryPolicy.cutoff(System.currentTimeMillis(), 90)) return
+    val percent = mark.percent ?: WatchHistoryPolicy.percent(mark.position, durationSec * 1000)
+    Column(modifier.fillMaxWidth()) {
+        Text(percent?.let { "$it%" } ?: androidx.compose.ui.res.stringResource(R.string.video_watched),
+            modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).background(Color.Black.copy(alpha = 0.78f),
+                RoundedCornerShape(4.dp)).padding(horizontal = 4.dp),
+            color = Color.White, fontSize = 10.sp, lineHeight = 13.sp)
+        if (percent != null) Box(Modifier.fillMaxWidth().height(3.dp).background(Color.DarkGray)) {
+            Box(Modifier.fillMaxWidth(percent / 100f).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
+        }
     }
 }
 

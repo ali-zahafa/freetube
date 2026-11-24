@@ -44,6 +44,8 @@ Built with Kotlin, Jetpack Compose and AndroidX Media3 (ExoPlayer).
 
 ### What's new in freetube 2.6.2
 
+Watch progress now appears on search results and suggested video thumbnails for up to 90 days.
+
 Tap the picture-in-picture window, then tap the headphones to close the floating video and continue listening in the background.
 
 ### What's new in freetube 2.6.1
@@ -121,6 +123,8 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk` (JDK 21 and th
 مبني بـ Kotlin و Jetpack Compose ومشغّل AndroidX Media3 (ExoPlayer).
 
 ### الجديد في freetube 2.6.2
+
+تظهر نسبة المشاهدة وشريط التقدّم على صور نتائج البحث والمقترحات لمدة تصل إلى ٩٠ يومًا.
 
 اضغط على نافذة الفيديو المصغّرة ثم على زر السماعة لإغلاق النافذة ومواصلة الاستماع في الخلفية.
 

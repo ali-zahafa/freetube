@@ -21,9 +21,14 @@ internal data class WatchEntry(
     val video: VideoItem,
     val watchedAt: Long,
     val resumePositionMs: Long,
+    val percent: Int? = null,
 )
 
 internal object WatchHistory {
+    internal data class Mark(val at: Long, val position: Long, val percent: Int?)
+    private val marks = MutableStateFlow(emptyMap<String, Mark>())
+    val progress = marks.asStateFlow()
+
     private val worker = Executors.newSingleThreadExecutor()
     private val entries = MutableStateFlow(emptyList<WatchEntry>())
     val videos = entries.asStateFlow()
@@ -36,18 +41,20 @@ internal object WatchHistory {
 
     fun init(context: Context) {
         preferences = context.getSharedPreferences("watch_history_settings", Context.MODE_PRIVATE)
-        database = object : SQLiteOpenHelper(context, "watch_history.db", null, 1) {
+        database = object : SQLiteOpenHelper(context, "watch_history.db", null, 2) {
             override fun onCreate(db: SQLiteDatabase) {
                 db.execSQL(
                     """CREATE TABLE history (
                         id TEXT PRIMARY KEY, title TEXT NOT NULL, channel TEXT NOT NULL,
-                        thumbnail TEXT, local_uri TEXT, watched INTEGER NOT NULL, position INTEGER NOT NULL
+                        thumbnail TEXT, local_uri TEXT, watched INTEGER NOT NULL, position INTEGER NOT NULL, percent INTEGER
                     )""",
                 )
                 db.execSQL("CREATE INDEX history_watched ON history(watched)")
             }
 
-            override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+            override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+                if (oldVersion < 2) db.execSQL("ALTER TABLE history ADD COLUMN percent INTEGER")
+            }
         }
         update {
             val default = WatchHistoryPolicy.defaultRetentionDays
@@ -84,6 +91,7 @@ internal object WatchHistory {
             put("local_uri", entry.video.localUri)
             put("watched", entry.watchedAt)
             put("position", entry.resumePositionMs)
+            put("percent", entry.percent)
         }
         if (firstSaveAt == 0L) {
             insertWithOnConflict("history", null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -107,6 +115,12 @@ internal object WatchHistory {
                     db.endTransaction()
                 }
                 days.value = retentionDays
+                marks.value = db.rawQuery("SELECT id, watched, position, percent FROM history", null).use { cursor ->
+                    buildMap {
+                        while (cursor.moveToNext()) put(cursor.getString(0), Mark(cursor.getLong(1), cursor.getLong(2),
+                            if (cursor.isNull(3)) null else cursor.getInt(3)))
+                    }
+                }
                 if (observing) entries.value = read(db)
             }.onFailure { Log.e("WatchHistory", "Local history operation failed", it) }
         }
@@ -233,7 +247,7 @@ internal class WatchHistoryTracker(
         val video = lookup(media) ?: return
         val watchedAt = System.currentTimeMillis()
         val resume = WatchHistoryPolicy.resumePosition(position, durationMs, live)
-        WatchHistory.save(WatchEntry(video, watchedAt, resume), firstSaveAt)
+        WatchHistory.save(WatchEntry(video, watchedAt, resume, if (live) null else WatchHistoryPolicy.percent(position, durationMs)), firstSaveAt)
         if (firstSaveAt == 0L) firstSaveAt = watchedAt
         lastSaveAt = now
     }

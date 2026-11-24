@@ -77,7 +77,7 @@ fun VideoOptionsSheet(video: VideoItem, player: PlayerState, onDismiss: () -> Un
         containerColor = c.surfaceContainerLow,
     ) {
         Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Thumbnail(video.thumbnail, Modifier.width(112.dp).aspectRatio(16f / 9f), radius = 14)
+            Thumbnail(video.thumbnail, Modifier.width(112.dp).aspectRatio(16f / 9f), radius = 14, videoId = video.id, durationSec = video.durationSec)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(video.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -131,7 +131,7 @@ fun QueueCard(player: PlayerState, onOpen: () -> Unit) {
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Thumbnail(next.thumbnail, Modifier.width(88.dp).aspectRatio(16f / 9f), radius = 12)
+        Thumbnail(next.thumbnail, Modifier.width(88.dp).aspectRatio(16f / 9f), radius = 12, videoId = next.id, durationSec = next.durationSec)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(

@@ -97,13 +97,16 @@ jobs:
           if [ -n "$dns" ]; then echo "option=-dns-server $dns" >> "$GITHUB_OUTPUT"; fi
           getent ahostsv4 www.youtube.com || echo "Runner DNS lookup failed"
 
+      - name: Build instrumentation APKs before starting the emulator
+        run: ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+
       - name: Test real WebView media with screen off beyond 60 seconds
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
           target: google_apis
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim ${{ steps.resolver.outputs.option }}
+          emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -memory 2048 -no-snapshot -noaudio -no-boot-anim ${{ steps.resolver.outputs.option }}
           disable-animations: true
           script: |
             adb shell ping -c 1 -W 2 www.youtube.com 2>&1 | tee /tmp/yt-emulator-network.log
