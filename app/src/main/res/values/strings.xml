@@ -12,4 +12,8 @@
     <string name="subtitle_import">Import subtitles (SRT or VTT)</string>
     <string name="subtitle_import_error">Could not read subtitles. Choose a UTF-8 SRT or VTT file up to 8 MB.</string>
     <string name="translation_unavailable">Translated captions are unavailable for this video.</string>
+    <string name="pip_background_audio">Play in background</string>
+    <string name="pip_play">Play</string>
+    <string name="pip_pause">Pause</string>
+    <string name="pip_next">Next</string>
 </resources>

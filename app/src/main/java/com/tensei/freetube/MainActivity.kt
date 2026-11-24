@@ -537,7 +537,7 @@ fun FreeTubeApp() {
         )
     }
 
-    pip.Bind(onClosed = { player.controller?.pause() })
+    pip.Bind(player, onClosed = { player.controller?.pause() })
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTabletOrTv = TvMode.isTv || LocalConfiguration.current.smallestScreenWidthDp >= 600
 

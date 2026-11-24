@@ -16,7 +16,7 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](#english)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
 
-## [تحميل freetube v2.6.1 لأندرويد · Download the Android APK](https://github.com/ali-zahafa/freetube/releases/download/v2.6.1/freetube-v2.6.1.apk)
+## [تحميل freetube v2.6.2 لأندرويد · Download the Android APK](https://github.com/ali-zahafa/freetube/releases/download/v2.6.2/freetube-v2.6.2.apk)
 
 **لمستخدمي v2.6.0 Preview:** النسخة الرسمية تُثبّت كتطبيق منفصل ببيانات مستقلة. يمكنك الاحتفاظ بالنسخة التجريبية للوصول إلى سجلّها.
 
@@ -41,6 +41,10 @@ If Google Play Protect offers a scan, choose **Scan app** and follow the result 
 **freetube** is a free, open-source **YouTube alternative** and streaming app for Android. Watch YouTube videos, Shorts and live streams **without ads**, keep listening **in the background** with the screen off, and **download** videos and audio at full speed — no Google account required. It also works as a lightweight **YouTube Music** player and runs on phones, tablets and **Android TV**.
 
 Built with Kotlin, Jetpack Compose and AndroidX Media3 (ExoPlayer).
+
+### What's new in freetube 2.6.2
+
+Tap the picture-in-picture window, then tap the headphones to close the floating video and continue listening in the background.
 
 ### What's new in freetube 2.6.1
 
@@ -93,7 +97,7 @@ Built with Kotlin, Jetpack Compose and AndroidX Media3 (ExoPlayer).
 
 ### 📥 Download
 
-[Download the signed freetube v2.6.1 APK](https://github.com/ali-zahafa/freetube/releases/download/v2.6.1/freetube-v2.6.1.apk)
+[Download the signed freetube v2.6.2 APK](https://github.com/ali-zahafa/freetube/releases/download/v2.6.2/freetube-v2.6.2.apk)
 
 ### 🛠️ Build from source
 
@@ -115,6 +119,10 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk` (JDK 21 and th
 **freetube** تطبيق مجاني ومفتوح المصدر، **بديل لتطبيق يوتيوب** على أندرويد. اتفرّج على فيديوهات يوتيوب والشورتس والبث المباشر **من غير إعلانات**، وكمّل سماع **في الخلفية** والشاشة مقفولة، و**حمّل** الفيديوهات والصوت بأقصى سرعة — من غير ما تحتاج حساب جوجل. وكمان بيشتغل كمشغّل **يوتيوب ميوزك** خفيف، وعلى الموبايل والتابلت و**Android TV**.
 
 مبني بـ Kotlin و Jetpack Compose ومشغّل AndroidX Media3 (ExoPlayer).
+
+### الجديد في freetube 2.6.2
+
+اضغط على نافذة الفيديو المصغّرة ثم على زر السماعة لإغلاق النافذة ومواصلة الاستماع في الخلفية.
 
 ### الجديد في freetube 2.6.1
 
@@ -165,7 +173,7 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk` (JDK 21 and th
 
 ### 📥 التحميل
 
-[تحميل ملف APK الموقّع لإصدار freetube v2.6.1](https://github.com/ali-zahafa/freetube/releases/download/v2.6.1/freetube-v2.6.1.apk)
+[تحميل ملف APK الموقّع لإصدار freetube v2.6.2](https://github.com/ali-zahafa/freetube/releases/download/v2.6.2/freetube-v2.6.2.apk)
 
 </div>
 

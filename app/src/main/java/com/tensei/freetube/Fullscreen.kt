@@ -1,6 +1,15 @@
 package com.tensei.freetube
 
 import android.app.Activity
+import android.app.PendingIntent
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.drawable.Icon
+import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import android.app.PictureInPictureParams
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -154,12 +163,40 @@ class PipController(private val activity: ComponentActivity) {
     var videoBounds: Rect? = null
 
 
+    private val audioAction = "${activity.packageName}.pip.AUDIO"
+    private val playAction = "${activity.packageName}.pip.PLAY_PAUSE"
+    private val nextAction = "${activity.packageName}.pip.NEXT"
+    private var leavingForAudio = false
+
+    @RequiresApi(26)
+    private fun action(name: String, icon: Int, title: String): RemoteAction {
+        val intent = Intent(name).setPackage(activity.packageName)
+        val pending = PendingIntent.getBroadcast(activity, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        return RemoteAction(Icon.createWithResource(activity, icon), title, title, pending)
+    }
+
+    @RequiresApi(26)
+    private fun actions(): List<RemoteAction> {
+        val owner = activity as? MainActivity ?: return emptyList()
+        val state = owner.playerHolder ?: return emptyList()
+        if (state.current == null || state.audioOnlyActive || state.isMusicMode ||
+            state.webPlayerEnabled || owner.shortsPlayerHolder?.isPlaying == true) return emptyList()
+        val playing = state.controller?.playWhenReady == true
+        return buildList {
+            add(action(audioAction, R.drawable.ic_pip_headphones, activity.getString(R.string.pip_background_audio)))
+            add(action(playAction, if (playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                activity.getString(if (playing) R.string.pip_pause else R.string.pip_play)))
+            if (state.canSkipNext) add(action(nextAction, android.R.drawable.ic_media_next, activity.getString(R.string.pip_next)))
+        }
+    }
+
     fun enter(videoAspect: Float): Boolean {
         if (!supported || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return false
 
         val ratio = videoAspect.coerceIn(0.42f, 2.38f)
         val params = PictureInPictureParams.Builder()
             .setAspectRatio(Rational((ratio * 1000).toInt(), 1000))
+            .setActions(actions())
             .apply {
                 videoBounds?.let { b -> setSourceRectHint(android.graphics.Rect(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())) }
             }
@@ -172,6 +209,7 @@ class PipController(private val activity: ComponentActivity) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             val builder = PictureInPictureParams.Builder()
                 .setAutoEnterEnabled(enabled)
+                .setActions(actions())
             if (enabled) {
                 val ratio = videoAspect.coerceIn(0.42f, 2.38f)
                 builder.setAspectRatio(Rational((ratio * 1000).toInt(), 1000))
@@ -184,15 +222,44 @@ class PipController(private val activity: ComponentActivity) {
     }
 
     @Composable
-    fun Bind(onClosed: () -> Unit) {
+    fun Bind(state: PlayerState, onClosed: () -> Unit) {
+        LaunchedEffect(active, state.isPlaying, state.canSkipNext, state.current?.id) {
+            if (active && android.os.Build.VERSION.SDK_INT >= 26) {
+                activity.setPictureInPictureParams(PictureInPictureParams.Builder().setActions(actions()).build())
+            }
+        }
         DisposableEffect(activity) {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    if (!activity.isInPictureInPictureMode || state.current == null) return
+                    when (intent.action) {
+                        audioAction -> {
+                            if (leavingForAudio) return
+                            leavingForAudio = true
+                            if (!state.backgroundAudioActive) state.toggleBackgroundAudio()
+                            updateAutoPip(false)
+                            if (!activity.moveTaskToBack(true)) leavingForAudio = false
+                        }
+                        playAction -> state.togglePlay()
+                        nextAction -> state.skipNext()
+                    }
+                }
+            }
+            val filter = IntentFilter(audioAction).apply { addAction(playAction); addAction(nextAction) }
+            ContextCompat.registerReceiver(activity, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
             val listener = Consumer<PictureInPictureModeChangedInfo> { info ->
                 active = info.isInPictureInPictureMode
 
-                if (!info.isInPictureInPictureMode && !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) onClosed()
+                if (!active) {
+                    if (!leavingForAudio && !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) onClosed()
+                    leavingForAudio = false
+                }
             }
             activity.addOnPictureInPictureModeChangedListener(listener)
-            onDispose { activity.removeOnPictureInPictureModeChangedListener(listener) }
+            onDispose {
+                activity.removeOnPictureInPictureModeChangedListener(listener)
+                activity.unregisterReceiver(receiver)
+            }
         }
     }
 }
