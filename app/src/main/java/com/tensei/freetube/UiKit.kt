@@ -255,7 +255,7 @@ fun Thumbnail(url: String?, modifier: Modifier = Modifier, radius: Int = 22, vid
     }
     Box(modifier.clip(RoundedCornerShape(radius.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         AsyncImage(model = model, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        if (videoId != null) WatchProgressBadge(videoId, durationSec, Modifier.align(Alignment.BottomStart))
+        if (videoId != null) WatchProgressBar(videoId, durationSec, Modifier.align(Alignment.BottomStart))
     }
 }
 
@@ -452,18 +452,12 @@ fun VideoRow(video: VideoItem, onClick: () -> Unit, trailing: (@Composable () ->
 
 
 @Composable
-private fun WatchProgressBadge(id: String, durationSec: Long, modifier: Modifier) {
+private fun WatchProgressBar(id: String, durationSec: Long, modifier: Modifier) {
     val mark = WatchHistory.progress.collectAsState().value[id] ?: return
     if (mark.at <= WatchHistoryPolicy.cutoff(System.currentTimeMillis(), 90)) return
-    val percent = mark.percent ?: WatchHistoryPolicy.percent(mark.position, durationSec * 1000)
-    Column(modifier.fillMaxWidth()) {
-        Text(percent?.let { "$it%" } ?: androidx.compose.ui.res.stringResource(R.string.video_watched),
-            modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).background(Color.Black.copy(alpha = 0.78f),
-                RoundedCornerShape(4.dp)).padding(horizontal = 4.dp),
-            color = Color.White, fontSize = 10.sp, lineHeight = 13.sp)
-        if (percent != null) Box(Modifier.fillMaxWidth().height(3.dp).background(Color.DarkGray)) {
-            Box(Modifier.fillMaxWidth(percent / 100f).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
-        }
+    val percent = mark.percent ?: WatchHistoryPolicy.percent(mark.position, durationSec * 1000) ?: return
+    Box(modifier.fillMaxWidth().height(3.dp).background(Color.DarkGray)) {
+        Box(Modifier.fillMaxWidth(percent / 100f).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
     }
 }
 
