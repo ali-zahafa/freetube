@@ -51,12 +51,23 @@ class PipAudioTest {
             shell("input keyevent KEYCODE_HOME")
             awaitOnMain("Home did not enter PiP") { activity.isInPictureInPictureMode }
             SystemClock.sleep(800)
+            val automation = instrumentation.uiAutomation
+            automation.serviceInfo = automation.serviceInfo.apply {
+                flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            }
             val xy = IntArray(2)
             instrumentation.runOnMainSync {
                 val view = activity.window.decorView
                 view.getLocationOnScreen(xy)
                 xy[0] += view.width / 2
                 xy[1] += view.height / 2
+            }
+            val pipWindow = automation.windows.firstOrNull { it.isInPictureInPictureMode }
+            pipWindow?.let {
+                val bounds = android.graphics.Rect()
+                it.getBoundsInScreen(bounds)
+                xy[0] = bounds.centerX()
+                xy[1] = bounds.centerY()
             }
             shell("input tap ${xy[0]} ${xy[1]}")
             val title = context.getString(R.string.pip_background_audio)
@@ -69,7 +80,7 @@ class PipAudioTest {
             val deadline = SystemClock.elapsedRealtime() + 5000
             var pressed = false
             while (!pressed && SystemClock.elapsedRealtime() < deadline) {
-                val button = findButton(instrumentation.uiAutomation.rootInActiveWindow)
+                val button = automation.windows.firstNotNullOfOrNull { findButton(it.root) }
                 if (button != null) {
                     val bounds = android.graphics.Rect()
                     button.getBoundsInScreen(bounds)
