@@ -987,6 +987,12 @@ object InnerTube {
     }
 
     suspend fun shorts(next: String? = null, sessionSeen: Set<String> = emptySet()): FeedPage = withContext(Dispatchers.IO) {
+        val local = PersonalFeed.page(next, shorts = true, excluded = SeenShorts.allSeen() + sessionSeen)
+        if (local != null) return@withContext local
+        standardShorts(PersonalFeed.standardToken(next), sessionSeen)
+    }
+
+    private suspend fun standardShorts(next: String?, sessionSeen: Set<String>): FeedPage = withContext(Dispatchers.IO) {
         val allSeen = SeenShorts.allSeen() + sessionSeen
         val result = LinkedHashMap<String, VideoItem>()
         var continuationToken: String? = null
@@ -1100,6 +1106,7 @@ object InnerTube {
     }
 
     suspend fun newShorts(sessionSeen: Set<String>, token: String? = null): FeedPage = withContext(Dispatchers.IO) {
+        PersonalFeed.page(null, shorts = true, excluded = SeenShorts.allSeen() + sessionSeen)?.let { return@withContext it }
         val allSeen = SeenShorts.allSeen() + sessionSeen
         val result = LinkedHashMap<String, VideoItem>()
         var continuationToken: String? = null
@@ -1119,7 +1126,7 @@ object InnerTube {
             }
         }
         if (result.size < 15) {
-            val fallback = loadInfiniteShortsFallback(token, allSeen)
+            val fallback = loadInfiniteShortsFallback(PersonalFeed.standardToken(token), allSeen)
             fallback.videos.forEach { result.putIfAbsent(it.id, it) }
             if (continuationToken == null) continuationToken = fallback.next
         }
@@ -1579,6 +1586,11 @@ object InnerTube {
     private val anonSeenVideoIds = LinkedHashSet<String>()
 
     suspend fun homeFeed(next: String? = null): FeedPage = withContext(Dispatchers.IO) {
+        PersonalFeed.page(next, shorts = false, excluded = emptySet())?.let { return@withContext it }
+        standardHomeFeed(PersonalFeed.standardToken(next))
+    }
+
+    private suspend fun standardHomeFeed(next: String?): FeedPage = withContext(Dispatchers.IO) {
         if (Account.signedIn && (next == null || !next.startsWith("anon_feed:"))) {
             val body = if (next != null) JSONObject().put("continuation", next)
                        else JSONObject().put("browseId", "FEwhat_to_watch")

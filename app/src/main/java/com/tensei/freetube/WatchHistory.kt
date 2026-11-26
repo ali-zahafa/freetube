@@ -76,6 +76,21 @@ internal object WatchHistory {
         }
     }
 
+    // Read on the feed loader's IO dispatcher, even when the history screen is closed.
+    fun recommendationTopics(): List<String> {
+        val db = database.readableDatabase
+        val cutoff = WatchHistoryPolicy.cutoff(System.currentTimeMillis(),
+            preferences.getInt("days", WatchHistoryPolicy.defaultRetentionDays))
+        return db.rawQuery(
+            """SELECT topic FROM
+               (SELECT coalesce(nullif(trim(channel), ''), trim(title)) AS topic, percent, watched
+                FROM history WHERE local_uri IS NULL AND watched > ? ORDER BY watched DESC LIMIT 40)
+               WHERE topic != '' GROUP BY topic COLLATE NOCASE
+               ORDER BY sum(1 + coalesce(percent, 0) / 100.0) DESC, max(watched) DESC LIMIT 8""",
+            arrayOf(cutoff.toString()),
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+    }
+
     fun refresh() = update {}
 
     fun remove(id: String) = update { delete("history", "id = ?", arrayOf(id)) }
